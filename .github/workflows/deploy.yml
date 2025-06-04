@@ -17,14 +17,14 @@ jobs:
         with:
           access_token: ${{ secrets.BW_ACCESS_TOKEN }}
           secrets: |
-            n8n-domain-name > DOMAIN_NAME
-            n8n-subdomain > SUBDOMAIN
-            n8n-postgres-password > POSTGRES_PASSWORD
-            n8n-auth-user > N8N_BASIC_AUTH_USER
-            n8n-auth-password > N8N_BASIC_AUTH_PASSWORD
-            n8n-ssh-private-key > SSH_PRIVATE_KEY
-            n8n-ssh-host > SSH_HOST
-            n8n-ssh-user > SSH_USER
+            a6c33ae3-c389-4b7d-a0db-b2f200f7b765 > DOMAIN_NAME
+            a5fc71b2-7018-491a-ae2e-b2f200f7da81 > SUBDOMAIN
+            e9f847ac-7b73-47a5-8554-b2f200f849a9 > POSTGRES_PASSWORD
+            117bde6f-ff7c-4ca1-a9f0-b2f200f8852e > N8N_BASIC_AUTH_USER
+            7d457892-a147-4dad-9371-b2f200f89755 > N8N_BASIC_AUTH_PASSWORD
+            148d45f9-0e38-467f-8e3d-b2f200f90a66 > SSH_PRIVATE_KEY
+            93923b19-9ef0-47a1-b0ab-b2f200f98017 > SSH_HOST
+            55f1eb49-d1e2-4653-bac2-b2f200f98edd > SSH_USER
       
       - name: Setup SSH
         run: |
