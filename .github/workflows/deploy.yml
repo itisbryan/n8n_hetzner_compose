@@ -29,8 +29,8 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+          echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/vinyx_ed25519
+          chmod 600 ~/.ssh/vinyx_ed25519
       
       - name: Add known hosts
         run: |
@@ -38,15 +38,15 @@ jobs:
 
       - name: Create deployment directory on server
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "mkdir -p ~/n8n_compose"
+          ssh -i ~/.ssh/vinyx_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "mkdir -p ~/n8n_compose"
           
       - name: Copy files to server
         run: |
-          rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --exclude '.git' --exclude '.github' --exclude '.env' ./ ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:~/n8n_compose/
+          rsync -avz -e "ssh -i ~/.ssh/vinyx_ed25519" --exclude '.git' --exclude '.github' --exclude '.env' ./ ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:~/n8n_compose/
 
       - name: Create secure .env file on server
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cat > ~/n8n_compose/.env << 'EOF'
+          ssh -i ~/.ssh/vinyx_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cat > ~/n8n_compose/.env << 'EOF'
           DATA_FOLDER=./data
           DOMAIN_NAME=${{ env.DOMAIN_NAME }}
           SUBDOMAIN=${{ env.SUBDOMAIN }}
@@ -77,15 +77,15 @@ jobs:
           NETWORK_NAME=n8n_network
           EOF"
           
-          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "chmod 600 ~/n8n_compose/.env"
+          ssh -i ~/.ssh/vinyx_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "chmod 600 ~/n8n_compose/.env"
 
       - name: Create necessary directories
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "mkdir -p ~/n8n_compose/data/caddy_config ~/n8n_compose/data/local_files"
+          ssh -i ~/.ssh/vinyx_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "mkdir -p ~/n8n_compose/data/caddy_config ~/n8n_compose/data/local_files"
       
       - name: Create Caddyfile
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cat > ~/n8n_compose/data/caddy_config/Caddyfile << 'EOF'
+          ssh -i ~/.ssh/vinyx_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cat > ~/n8n_compose/data/caddy_config/Caddyfile << 'EOF'
           {
               email admin@${{ env.DOMAIN_NAME }}
           }
@@ -97,9 +97,9 @@ jobs:
 
       - name: Deploy with Docker Compose
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ~/n8n_compose && docker compose down && docker compose up -d"
+          ssh -i ~/.ssh/vinyx_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ~/n8n_compose && docker compose down && docker compose up -d"
       
       - name: Health check
         run: |
-          sleep 30  # Wait for services to start
-          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "curl -s --insecure https://${{ env.SUBDOMAIN }}.${{ env.DOMAIN_NAME }}/ -o /dev/null -w '%{http_code}' | grep -q '200' && echo 'Health check passed' || echo 'Health check failed'"
+          sleep 30
+          ssh -i ~/.ssh/vinyx_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "curl -s --insecure https://${{ env.SUBDOMAIN }}.${{ env.DOMAIN_NAME }}/ -o /dev/null -w '%{http_code}' | grep -q '200' && echo 'Health check passed' || echo 'Health check failed'"
