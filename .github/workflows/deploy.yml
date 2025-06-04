@@ -1,0 +1,105 @@
+name: Deploy to Hetzner
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Bitwarden Secrets Manager
+        uses: bitwarden/sm-action@v2
+        with:
+          access_token: ${{ secrets.BW_ACCESS_TOKEN }}
+          secrets: |
+            n8n-domain-name > DOMAIN_NAME
+            n8n-subdomain > SUBDOMAIN
+            n8n-postgres-password > POSTGRES_PASSWORD
+            n8n-auth-user > N8N_BASIC_AUTH_USER
+            n8n-auth-password > N8N_BASIC_AUTH_PASSWORD
+            n8n-ssh-private-key > SSH_PRIVATE_KEY
+            n8n-ssh-host > SSH_HOST
+            n8n-ssh-user > SSH_USER
+      
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ env.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+      
+      - name: Add known hosts
+        run: |
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Create deployment directory on server
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "mkdir -p ~/n8n_compose"
+          
+      - name: Copy files to server
+        run: |
+          rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --exclude '.git' --exclude '.github' --exclude '.env' ./ ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:~/n8n_compose/
+
+      - name: Create secure .env file on server
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cat > ~/n8n_compose/.env << 'EOF'
+          DATA_FOLDER=./data
+          DOMAIN_NAME=${{ env.DOMAIN_NAME }}
+          SUBDOMAIN=${{ env.SUBDOMAIN }}
+          GENERIC_TIMEZONE=Asia/Bangkok
+
+          POSTGRES_CONTAINER_NAME=n8b_db_container
+          POSTGRES_DB=n8n_db
+          POSTGRES_USER=n8n_user
+          POSTGRES_PASSWORD=${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_PORT=5432
+
+          N8N_CONTAINER_NAME=n8n_container
+          DB_HOST=postgres
+          DB_PORT=5432
+          DB_NAME=n8n_db
+          DB_USER=n8n_user
+          DB_PASSWORD=${{ env.POSTGRES_PASSWORD }}
+          N8N_BASIC_AUTH_ACTIVE=true
+          N8N_BASIC_AUTH_USER=${{ env.N8N_BASIC_AUTH_USER }}
+          N8N_BASIC_AUTH_PASSWORD=${{ env.N8N_BASIC_AUTH_PASSWORD }}
+          N8N_SECURE_COOKIE=false
+          N8N_PROTOCOL=https
+          N8N_PORT=5678
+          N8N_HOST=${{ env.SUBDOMAIN }}.${{ env.DOMAIN_NAME }}
+          WEBHOOK_URL=https://${{ env.SUBDOMAIN }}.${{ env.DOMAIN_NAME }}/
+          DB_POSTGRESDB_CONNECTION_TIMEOUT=30000
+
+          NETWORK_NAME=n8n_network
+          EOF"
+          
+          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "chmod 600 ~/n8n_compose/.env"
+
+      - name: Create necessary directories
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "mkdir -p ~/n8n_compose/data/caddy_config ~/n8n_compose/data/local_files"
+      
+      - name: Create Caddyfile
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cat > ~/n8n_compose/data/caddy_config/Caddyfile << 'EOF'
+          {
+              email admin@${{ env.DOMAIN_NAME }}
+          }
+
+          ${{ env.SUBDOMAIN }}.${{ env.DOMAIN_NAME }} {
+              reverse_proxy n8n:5678
+          }
+          EOF"
+
+      - name: Deploy with Docker Compose
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "cd ~/n8n_compose && docker compose down && docker compose up -d"
+      
+      - name: Health check
+        run: |
+          sleep 30  # Wait for services to start
+          ssh -i ~/.ssh/id_ed25519 ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "curl -s --insecure https://${{ env.SUBDOMAIN }}.${{ env.DOMAIN_NAME }}/ -o /dev/null -w '%{http_code}' | grep -q '200' && echo 'Health check passed' || echo 'Health check failed'"

@@ -1,0 +1,23 @@
+.windsurf/
+postgres_data/
+local_files/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Data directories
+data/
+
+# Logs
+*.log
+logs/
+
+# Node modules (if any)
+node_modules/
+
+# SSH keys
+*.pem
+*.key
+id_*
